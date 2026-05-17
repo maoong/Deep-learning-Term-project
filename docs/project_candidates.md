@@ -28,8 +28,9 @@
 | 16 | 냉장고 파먹기 AI                   | 재료로 가능한 레시피와 부족한 재료 추천                             |
 | 17 | 화장품 성분 번역기                   | 성분표를 쉬운 말로 번역하고 주의 성분 분류                           |
 | 18 | 이어폰 낀 사람용 주변 위험 소리 알림        | 사이렌·경적·유리 깨짐 등 위험 소리 감지 알림                         |
-| 19 | 리뷰 낚시 탐정                     | 가짜·과장 리뷰 의심도 판단 + 공통 장단점 요약                        |
-
+| 19 | 리뷰 낚시 탐정                     | 가짜·과장 리뷰 의심도 판단 + 공통 장단점 요약                         |
+| 20 | 부동산 추천 및 리뷰 필터링             | 부동산 매물 추천 및 실거주자 리뷰 긍부정 판단                           |
+| 21 | 유투브 쇼츠 필터링                    |   AI로 생성된 거짓 정보 쇼츠 필터링               
 ---
 
 ## 상세 아이디어
@@ -975,3 +976,96 @@ AI 요약:
 
 * [Amazon Reviews 2023 (McAuley Lab, Hugging Face)](https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023)
 * [Deceptive Opinion Spam Corpus (Myle Ott)](https://myleott.com/op-spam.html)
+
+
+### 20. 부동산 추천 및 리뷰 필터링
+
+#### 주제
+
+> **"동네 후기를 넣으면 광고성/과장 리뷰를 걸러내고, 진짜 살아본 사람 관점의 장단점과 맞춤 매물을 추천해주는 AI"**
+
+
+#### 대략적인 계획
+
+1.데이터 준비
+
+직방·다방·네이버 부동산 크롤링으로 실제 거주 후기 수집 (교통, 소음, 관리비, 주변 환경 등 태그 포함).
+Deceptive Opinion Spam Corpus 기반으로 가짜 후기 탐지 baseline 전이학습.
+공인중개사 홍보성 글 vs 실거주자 후기 이진 라벨링으로 지도학습 데이터 구성.
+국토교통부 실거래가 공공데이터 연계해 가격 이상값 탐지 feature 추가.
+
+
+2.모델 구성
+
+- Baseline: TF-IDF + Logistic Regression으로 광고성 후기 이진 분류.
+- 딥러닝: KoBERT fine-tuning으로 가짜/과장 후기 탐지 + 감성 분류 (긍정/부정/중립).
+- 리뷰 요약: KoBART로 다수 후기 → "교통 좋음, 층간소음 심함" 형태의 키워드 요약.
+- 추천 모델: 사용자 조건(예산, 교통, 평수, 반려동물 등)을 입력받아 협업 필터링 또는 콘텐츠 기반 필터링으로 매물 추천.
+- 가짜 의심 근거 feature화:
+  지나치게 긍정적인 단어 비율 (어휘 다양성 낮음)
+  입주 직후 단기 계정의 첫 리뷰 여부
+  구체적 지명·시설 언급 없이 감정 과잉 표현
+  동일 IP·계정 패턴 (메타데이터 활용 시)
+  실거래가 대비 가격 묘사 괴리
+
+  
+📄 논문 1 — 가짜 리뷰 탐지 (핵심 태스크)
+"Fake Review Detection on Digital Platforms Using the RoBERTa Model: A Deep Learning and NLP Approach"
+HighTech and Innovation Journal, 2023
+
+RoBERTa 기반 하이브리드 모델로 가짜 리뷰를 탐지하며, 두 가지 다른 주제의 데이터셋에서 테스트해 범용성을 검증한 논문이에요. ResearchGate
+프로젝트의 KoBERT fine-tuning 파트와 직접적으로 연결됩니다. Transformer 계열 모델로 가짜 리뷰를 어떻게 잡아내는지 구체적인 방법론 참고 가능.
+🔗 ResearchGate 링크
+
+
+📄 논문 2 — 부동산 추천 시스템 (추천 파트)
+"Recommender Systems in Real Estate: A Systematic Review"
+Expert Systems with Applications, Elsevier, 2024
+
+2019년~2024년 사이 발표된 부동산 추천 시스템 논문들을 PRISMA 기준으로 체계적으로 분석한 리뷰 논문으로, 콘텐츠 기반 필터링·협업 필터링·지식 기반·하이브리드 방식 네 가지를 비교하며, 딥러닝 모델 중 CNN-LSTM 아키텍처가 선호된다는 점과 가격·방 수·위치 등이 핵심 feature임을 밝히고 있어요. Academia.edu
+프로젝트의 추천 모델 파트 전체 설계를 잡을 때 로드맵 역할을 해줄 거예요. 어떤 방식이 부동산에서 잘 되는지 비교 정리가 되어 있어서 모델 선택 근거로 쓰기 좋아요.
+🔗 Academia.edu 링크
+
+
+
+### 20. 가짜 쇼츠 판별기
+
+#### 주제 
+> **"유튜브 쇼츠를 분석하면 AI가 양산한 저품질 콘텐츠를 걸러내고, 진짜 사람이 만든 쇼츠인지 판별해주는 AI"**
+쇼츠의 자막·제목·썸네일·댓글 데이터를 입력하면 AI 생성 의심도를 판단하고, 반복 패턴·클릭베이트·감정 조작 요소를 탐지해 콘텐츠 신뢰도를 점수화해주는 시스템.
+
+#### 대략적인 계획
+
+1.데이터 준비
+
+YouTube Data API v3로 쇼츠 메타데이터 수집 (제목, 설명, 댓글, 좋아요 수, 업로드 주기, 채널 개설일 등).
+AI 생성 텍스트 탐지를 위한 공개 데이터셋 활용 — HC3(Human ChatGPT Comparison Corpus), RAID Benchmark 등.
+양산형 쇼츠 특징을 직접 라벨링 — 동일 채널의 업로드 주기 이상값, 자막 반복률, 클릭베이트 키워드 빈도 기반으로 이진 레이블 구성.
+썸네일 이미지는 AI 생성 이미지 탐지 데이터셋(CIFAKE 등) 활용해 멀티모달 feature 추가.
+
+
+2.모델 구성
+
+Baseline: TF-IDF + Logistic Regression으로 제목/자막 텍스트의 AI 생성 여부 이진 분류.
+딥러닝 (텍스트): RoBERTa 또는 KoBERT fine-tuning으로 자막·댓글의 AI 생성 텍스트 탐지 + 클릭베이트 분류.
+딥러닝 (이미지): ResNet 또는 EfficientNet으로 썸네일의 AI 생성 이미지 탐지.
+멀티모달 융합: 텍스트 모델 + 이미지 모델 출력을 Late Fusion으로 결합해 최종 신뢰도 점수 산출. > 멀티모달 어려움...
+
+
+📄 논문 1 — AI 생성 텍스트 탐지 (자막·제목 파트)
+"AI-Generated Text Detection Using RoBERTa: A Generalizability and Explainability Analysis"
+ResearchGate, 2024
+
+RoBERTa를 HC3 데이터셋으로 학습시키고, 평균 줄 길이·단어 밀도·품사 태그·Flesch Reading Ease 점수·Gunning Fog Index·Perplexity 등 언어적·통계적 feature를 word embedding과 결합해 99% 정확도를 달성한 논문이에요. arXiv
+프로젝트의 KoBERT/RoBERTa fine-tuning + TTR·어휘 다양성 feature화 파트와 직접 연결됩니다. 어떤 언어적 feature가 AI 생성 텍스트를 잡아내는지 구체적인 근거로 쓰기 좋아요.
+🔗 arXiv 링크
+
+
+📄 논문 2 — 유튜브 클릭베이트·멀티모달 탐지 (썸네일·제목 파트)
+"BaitRadar: A Multi-Model Clickbait Detection Algorithm Using Deep Learning"
+Monash University / arXiv, 2025
+
+유튜브 클릭베이트 문제를 해결하기 위해 제목·댓글·썸네일·태그·영상 통계·오디오 자막 등 6가지 속성을 각각 분석하는 딥러닝 모델을 결합한 멀티모달 아키텍처로, 여러 모델의 추론을 종합해 최종 판별하는 방식을 제안해요. arxivarXiv
+프로젝트의 텍스트+이미지 Late Fusion 멀티모달 구성 설계에 그대로 참고할 수 있어요. 특히 썸네일·자막·댓글을 따로 모델링한 뒤 합치는 구조가 이 논문과 거의 동일해요.
+🔗 arXiv 링크
+
